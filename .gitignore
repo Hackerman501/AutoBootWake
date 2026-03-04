@@ -1,0 +1,14 @@
+# Build output
+*.o
+*.elf
+*.ipx
+*.rpx
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
