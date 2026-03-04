@@ -1,119 +1,108 @@
-# AutoBootWake - Controller-basierte Boot-Auswahl für Wii U
+# AutoBootWake - Controller-based Boot Selection for Wii U
 
 ## Projekt-Übersicht
 
 Dieses Projekt ermöglicht das automatische Booten in unterschiedliche Ziele (vWii / Wii U Menu) basierend auf dem verwendeten Controller.
 
-### Unterstützte Funktionen
-
-- **Controller-Erkennung:** Erkennt ob GamePad oder WiiMote verwendet wird
-- **Autoboot:** Bootet automatisch nach konfigurierbarer Zeit
-- **vWii-Boot:** Bootet bei WiiMote in den Virtual Wii Modus
-- **Wii U Menu:** Bootet bei GamePad in das normale Wii U Menu
-- **SD-Karten-Config:** Lädt Einstellungen von `abw.cfg`
-- **Logging:** Protokolliert Aktionen in `abw.log`
-
-### Aktueller Status
-
-- ✅ C-Code geschrieben und getestet
-- ✅ Kompiliert zu `.ipx` (für klassischen Plugin Loader)
-- ❌ Boot-Funktionen noch nicht vollständig getestet
-- ❌ Nicht ISFSHax-kompatibel (braucht laufendes OS)
-
-## Dateien
+### Verfügbare Dateien
 
 ```
 code/
-├── v6 final/           # Kompilierte Version
-│   ├── 90ab_w.ipx     # Kompiliertes Plugin
+├── v6 final/           # Kompiliertes IPX-Plugin
+│   ├── 90ab_w.ipx     # Plugin für klassischen Loader
 │   ├── autoboot_wake.c
 │   └── Makefile
-├── source/
-│   └── autoboot_wake.c
-├── v1/ bis v5/         # Ältere Versionen
-└── README.md           # Diese Datei
+├── source/             # Quellcode
+├── patch/              # Erweiterungen
+│   ├── WakeSource.h   # Wake-Source Erkennung für Aroma
+│   └── stroopwafel_plugin.c  # ISFShax Plugin (Pseudocode)
+└── README.md
 ```
 
-## Konfiguration
+### Aktueller Status
 
-Erstelle `abw.cfg` auf der SD-Karte:
+| Komponente | Status | Beschreibung |
+|------------|--------|--------------|
+| IPX Plugin | ✅ Fertig | Kompiliert, für klassischen Plugin Loader |
+| Wake-Source Erkennung | 🔄 In Arbeit | Code für PRSH/MCP Flags |
+| Aroma Integration | 🔄 In Arbeit | WakeSource.h als Erweiterung |
+| ISFShax Plugin | ⚠️ Pseudocode | Benötigt weitere Entwicklung |
 
-```
-timeout=5
-log=1
-wiimote_enable=1
-gamepad_enable=1
-boot_default=wiiu_menu
-boot_gamepad=wiiu_menu
-boot_wiimote=vwii
-fallback=wiiu_menu
-```
+## Wake-Source Erkennung
 
-### Optionen
+### Option 1: Aroma AutobootModule
 
-- `timeout` - Wartezeit in Sekunden (Standard: 5)
-- `log` - Logging aktivieren (0/1, Standard: 1)
-- `wiimote_enable` - WiiMote-Boot aktivieren (Standard: 1)
-- `gamepad_enable` - GamePad-Boot aktivieren (Standard: 1)
-- `boot_default` - Standard Boot-Ziel (Standard: wiiu_menu)
-- `boot_gamepad` - Boot-Ziel für GamePad (Standard: wiiu_menu)
-- `boot_wiimote` - Boot-Ziel für WiiMote (Standard: vwii)
-- `fallback` - Fallback-Ziel (Standard: wiiu_menu)
+Die Datei `patch/WakeSource.h` enthält Code zur Wake-Source Erkennung,
+der in das AutobootModule von Aroma integriert werden kann.
 
-### Boot-Ziele
+**Integration:**
+1. Klone das AutobootModule: `git clone https://github.com/wiiu-env/AutobootModule`
+2. Kopiere `WakeSource.h` in das `source/` Verzeichnis
+3. Füge in `main.cpp` hinzu:
+   ```cpp
+   #include "WakeSource.h"
+   
+   // In der main() Funktion, nach dem Laden:
+   if (isWakeSourceWiimote()) {
+       bootSelection = BOOT_OPTION_VWII_SYSTEM_MENU;
+   }
+   ```
 
-- `wiiu_menu` - Wii U System Menu
-- `vwii` - Virtual Wii
-- `stay` - Im aktuellen Titel bleiben
+### Option 2: ISFShax Stroopwafel Plugin
+
+Die Datei `patch/stroopwafel_plugin.c` enthält Pseudocode für ein
+frühes IOSU-Plugin, das die Wake-Source speichert.
+
+**Hinweis:** Dies erfordert tiefes Wissen über IOSU-Hacking und ist
+für die meisten Benutzer nicht empfehlenswert.
+
+## Technische Details
+
+### Wake-Source Speicher-Adressen
+
+- **PRSH Boot Info:** `0x10000000` (MEM2)
+- **OSPlatformInfo:** `0x1FFF000` (MEM1)
+
+### Power Flags
+
+| Flag | Bedeutung |
+|------|-----------|
+| `0x80000000` | Power Button |
+| `0x40000000` | Eject Button |
+| `0x08000000` | Wake Request 1 (Bluetooth) |
+| `0x00000001` | Bluetooth Wake (WiiMote) |
 
 ## Kompilierung
 
 ```bash
+# IPX-Plugin
 cd v6\ final
-make clean
-make
+make clean && make
+
+# Ausgabe: 90ab_w.ipx
 ```
 
 ## Installation
 
-### Klassischer Plugin Loader
+### IPX Plugin (Klassisch)
+```
+sd:/wiiu/plugins/90ab_w.ipx
+```
 
-Kopiere `90ab_w.ipx` nach:
-- `sd:/wiiu/plugins/` (Plugin Loader)
+### Config
+```
+sd:/wiiu/abw.cfg
+```
 
-### Aroma/Tiramisu
+## Nächste Schritte
 
-Für Aroma wird ein anderes Format benötigt (.rpx/.wuhb). Siehe unten.
+1. ✅ IPX Plugin kompilieren und testen
+2. 🔄 Aroma AutobootModule erweitern
+3. 🔄 Wake-Source Erkennung verfeinern
+4. ⚠️ ISFShax Plugin entwickeln (optional)
 
-## Technische Details
+## Danksagung
 
-### Verwendete APIs
-
-- `coreinit/filesystem.h` - Dateisystem-Zugriff
-- `coreinit/time.h` - Zeitfunktionen
-- `coreinit/launch.h` - Titel-Wechsel
-- `vpad/input.h` - GamePad-Erkennung
-- `padscore/wpad.h` - WiiMote-Erkennung
-- `nn/cmpt.h` - vWii-Boot
-
-### Bekannte Einschränkungen
-
-1. Das Plugin startet nach IOSU - nicht für ISFSHax geeignet
-2. Wake-Source (welcher Controller bootete) wird NICHT direkt erkannt
-3. Es wird der aktuell verbundene Controller geprüft, nicht der Boot-Trigger
-
-## Zukünftige Entwicklung
-
-Für echte Wake-Source-Erkennung (welcher Controller bootete):
-
-1. **ISFSHax-Erweiterung:** MCP-Wake-Flags früh im Boot lesen
-2. **Aroma-Modul:** AutobootModule erweitern mit Controller-Erkennung
-3. **PRSH-Hook:** Boot-Info aus PRSH auslesen
-
-Siehe Diskussion: https://gbatemp.net/threads/
-
-## Credits
-
-- Basierend auf Wii U Homebrew SDK (devkitPRO/wut)
-- Controller-Erkennung via VPAD/WPAD
-- Titel-Launch via SYSLaunchTitle/CMPTLaunchTitle
+- devkitPRO/wut für die Wii U Toolchain
+- AutobootModule von wiiu-env
+- GBAtemp Community für technische Informationen
